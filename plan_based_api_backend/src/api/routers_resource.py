@@ -1,36 +1,37 @@
-from fastapi import APIRouter, Query, HTTPException
+"""
+Resource endpoint whose behavior changes according to current user's plan.
+"""
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from . import auth, models
 
 router = APIRouter(
     prefix="",
     tags=["Resource"],
 )
 
-# Hardcoded user->plan mapping
-USERS_AND_PLANS = {
-    "alice": {"plan": "BASIC"},
-    "bob": {"plan": "PRO"},
-    "clara": {"plan": "ENTERPRISE"},
-}
-
 # PUBLIC_INTERFACE
-@router.get("/resource", summary="Get resource response based on user's plan")
-def resource(username: str = Query(..., description="Username to check")):
+@router.get("/resource", summary="Get resource, differing by user's assigned plan")
+def get_resource(
+    db: Session = Depends(auth.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
     """
-    Returns a response string depending on which hardcoded user is supplied.
-    - alice: plan BASIC
-    - bob: plan PRO
-    - clara: plan ENTERPRISE
+    Returns a response string depending on the logged-in user's assigned plan.
+    - BASIC: summary usage only.
+    - PRO: summary plus analytics.
+    - ENTERPRISE: full insights and downloads.
     """
-    user_plan = USERS_AND_PLANS.get(username)
-    if not user_plan:
-        raise HTTPException(status_code=404, detail="Unknown user or user not configured in demo.")
+    plan_rel = current_user.plan_assignment
+    if not plan_rel or not plan_rel.plan:
+        raise HTTPException(status_code=403, detail="User has no plan assigned")
 
-    plan = user_plan["plan"]
+    plan = plan_rel.plan.name.upper()
     if plan == "BASIC":
-        return {"message": "Hello Alice (BASIC). You have basic access: summary usage report only."}
+        return {"message": f"Hello {current_user.username} (BASIC). You have basic access: summary usage report only."}
     elif plan == "PRO":
-        return {"message": "Hello Bob (PRO). You get pro access: summary report plus analytics."}
+        return {"message": f"Hello {current_user.username} (PRO). You get pro access: summary report plus analytics."}
     elif plan == "ENTERPRISE":
-        return {"message": "Hello Clara (ENTERPRISE). You get full enterprise insights and downloads!"}
+        return {"message": f"Hello {current_user.username} (ENTERPRISE). You get full enterprise insights and downloads!"}
     else:
         return {"message": f"Unknown plan type: {plan}"}
