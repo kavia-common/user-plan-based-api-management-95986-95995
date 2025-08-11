@@ -1,20 +1,15 @@
 """
-FastAPI main entrypoint for plan-based API backend.
+FastAPI main entrypoint for plan-based API backend (in-memory, DB-free).
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routers_resource import router as resource_router
 from .routers_users_plans import router as users_plans_router
-from .database import engine
-from .models import Base
-
-# Create all tables on startup (dev/demo only). Production: use Alembic.
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
-    title="Plan-Based API Backend (Demo Mode)",
-    description="Backend API with real user authentication, plan management, and plan-based endpoint behavior.",
+    title="Plan-Based API Backend (Demo Mode, In-Memory)",
+    description="Backend API with real user authentication (in-memory), plan management, and plan-based endpoint behavior.",
     version="1.0.1",
     openapi_tags=[
         {"name": "Resource", "description": "Endpoints whose behavior change based on user's plan"},
