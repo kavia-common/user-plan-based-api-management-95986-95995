@@ -1,35 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from .database import get_db
-from . import auth
+from fastapi import APIRouter, Query, HTTPException
 
 router = APIRouter(
-    prefix="/resource",
+    prefix="",
     tags=["Resource"],
 )
 
-# PUBLIC_INTERFACE
-@router.get("/fetch_data", summary="Fetch resource, plan-based logic")
-def fetch_data(
-    db: Session = Depends(get_db),
-    user=Depends(auth.get_current_user),
-):
-    """
-    Returns data according to user's assigned plan.
-    Free plan: simple message. 
-    Pro plan: includes extra features.
-    Enterprise plan: includes all features.
-    """
-    plan = auth.get_user_plan(db, user)
-    if not plan:
-        raise HTTPException(status_code=403, detail="No plan assigned")
+# Hardcoded user->plan mapping
+USERS_AND_PLANS = {
+    "alice": {"plan": "BASIC"},
+    "bob": {"plan": "PRO"},
+    "clara": {"plan": "ENTERPRISE"},
+}
 
-    # Plan-based logic
-    if plan.name.lower() == "free":
-        return {"message": "Welcome Free user. Basic access."}
-    elif plan.name.lower() == "pro":
-        return {"message": "Hello Pro user! You get basic + advanced features."}
-    elif plan.name.lower() == "enterprise":
-        return {"message": "Hello Enterprise user! You have full access to all features."}
+# PUBLIC_INTERFACE
+@router.get("/resource", summary="Get resource response based on user's plan")
+def resource(username: str = Query(..., description="Username to check")):
+    """
+    Returns a response string depending on which hardcoded user is supplied.
+    - alice: plan BASIC
+    - bob: plan PRO
+    - clara: plan ENTERPRISE
+    """
+    user_plan = USERS_AND_PLANS.get(username)
+    if not user_plan:
+        raise HTTPException(status_code=404, detail="Unknown user or user not configured in demo.")
+
+    plan = user_plan["plan"]
+    if plan == "BASIC":
+        return {"message": "Hello Alice (BASIC). You have basic access: summary usage report only."}
+    elif plan == "PRO":
+        return {"message": "Hello Bob (PRO). You get pro access: summary report plus analytics."}
+    elif plan == "ENTERPRISE":
+        return {"message": "Hello Clara (ENTERPRISE). You get full enterprise insights and downloads!"}
     else:
-        return {"message": f"Plan '{plan.name}' is not recognized."}
+        return {"message": f"Unknown plan type: {plan}"}
